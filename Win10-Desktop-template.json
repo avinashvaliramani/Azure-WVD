@@ -1,0 +1,144 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json# , https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "location": {
+            "type": "string",
+			"defaultvalue": "centralindia"
+        },
+        "networkInterfaceName": {
+            "type": "string",
+			"defaultvalue": "desktop-Template-nic1"
+        },
+        "subnetName": {
+            "type": "string",
+			"defaultvalue": "Subnet01"
+        },
+		    "virtualNetworkName": {
+            "type": "string",
+			"defaultvalue": "AzureWVD-vnet"
+        },
+        "virtualMachineName": {
+            "type": "string",
+			"defaultvalue": "DesktopTemplate"
+        },
+        "virtualMachineComputerName": {
+            "type": "string",
+			"defaultvalue": "DesktopTemplate"
+        },
+        "virtualMachineRG": {
+            "type": "string",
+			"defaultvalue": "AzureWVDRG"
+        },
+        "osDiskType": {
+            "type": "string",
+			"defaultvalue": "StandardSSD_LRS"
+        },
+        "virtualMachineSize": {
+            "type": "string",
+			"defaultvalue": "Standard_B2ms"
+        },
+        "adminUsername": {
+            "type": "string",
+			"defaultvalue": "desktopadmin"
+        },
+        "adminPassword": {
+            "type": "secureString",
+			"defaultvalue": null
+        },
+        "patchMode": {
+            "type": "string",
+			"defaultvalue": "Manual"
+        },
+        "enableHotpatching": {
+            "type": "bool",
+			"defaultvalue": false
+        }
+    },
+    "variables": {
+        "vnetId": "[resourceId(resourceGroup().name,'Microsoft.Network/virtualNetworks', parameters('virtualNetworkName'))]",
+        "subnetRef": "[concat(variables('vnetId'), '/subnets/', parameters('subnetName'))]"
+    },
+    "resources": [
+        {
+            "name": "[parameters('networkInterfaceName')]",
+            "type": "Microsoft.Network/networkInterfaces",
+            "apiVersion": "2018-10-01",
+            "location": "[parameters('location')]",
+            "dependsOn": [],
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig1",
+                        "properties": {
+                            "subnet": {
+                                "id": "[variables('subnetRef')]"
+                            },
+                            "privateIPAllocationMethod": "Dynamic"
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "name": "[parameters('virtualMachineName')]",
+            "type": "Microsoft.Compute/virtualMachines",
+            "apiVersion": "2020-12-01",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[concat('Microsoft.Network/networkInterfaces/', parameters('networkInterfaceName'))]"
+            ],
+            "properties": {
+                "hardwareProfile": {
+                    "vmSize": "[parameters('virtualMachineSize')]"
+                },
+                "storageProfile": {
+                    "osDisk": {
+                        "createOption": "fromImage",
+                        "managedDisk": {
+                            "storageAccountType": "[parameters('osDiskType')]"
+                        }
+                    },
+                    "imageReference": {
+                        "publisher": "microsoftwindowsdesktop",
+                        "offer": "office-365",
+                        "sku": "20h2-evd-o365pp",
+                        "version": "latest"
+                    }
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', parameters('networkInterfaceName'))]"
+                        }
+                    ]
+                },
+                "osProfile": {
+                    "computerName": "[parameters('virtualMachineComputerName')]",
+                    "adminUsername": "[parameters('adminUsername')]",
+                    "adminPassword": "[parameters('adminPassword')]",
+                    "windowsConfiguration": {
+                        "enableAutomaticUpdates": false,
+                        "provisionVmAgent": true,
+                        "patchSettings": {
+                            "enableHotpatching": "[parameters('enableHotpatching')]",
+                            "patchMode": "[parameters('patchMode')]"
+                        }
+                    }
+                },
+                "licenseType": "Windows_Client",
+                "diagnosticsProfile": {
+                    "bootDiagnostics": {
+                        "enabled": true
+                    }
+                }
+            }
+        }
+    ],
+    "outputs": {
+        "adminUsername": {
+            "type": "string",
+            "value": "[parameters('adminUsername')]"
+        }
+    }
+}
